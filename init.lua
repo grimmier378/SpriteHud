@@ -14,7 +14,7 @@ local filePath = nil -- this will be set to the script folder if not loaded exte
 local spriteTexture = nil
 local efxTexture = nil
 
-local imgSize = 128 -- This is the size to draw the image
+local imgSize = 64  -- This is the size to draw the image
 local targetFPS = 6 -- Target FPS for the animation
 
 -- sprite draw variables
