@@ -37,6 +37,7 @@ local cursorX = 0
 local cursorY = 0
 local debugStatus = false -- set to true to force all status effects to be true for testing
 local debugEfx = {
+	casting = false,
 	cursed = false,
 	poisoned = false,
 	diseased = false,
@@ -51,6 +52,9 @@ local debugEfx = {
 	hot = false,
 	outside = false,
 	dungeon = false,
+	feetwet = false,
+	underwater = false,
+	combat = false,
 }
 local status = {
 	Combat = false,
@@ -246,7 +250,9 @@ function Module.RenderGUI()
 			end
 
 			if status.Casting then
-				if mq.TLO.Spell(myself.Casting()).Beneficial() then
+				if debugEfx.casting then
+					DrawAnimatedFrame(efxTexture, 5, efxFrame, true)
+				elseif mq.TLO.Spell(myself.Casting()).Beneficial() then
 					DrawAnimatedFrame(efxTexture, 5, efxFrame, true)
 				else
 					DrawAnimatedFrame(efxTexture, 5, efxFrame, false)
@@ -261,7 +267,7 @@ function Module.RenderGUI()
 
 			if status.FeetWet and not status.UnderWater then
 				DrawAnimatedFrame(efxTexture, 3, 3, false)
-			elseif status.FeetWet and status.UnderWater then
+			elseif (status.FeetWet and status.UnderWater) or debugEfx.underwater then
 				DrawAnimatedFrame(efxTexture, 3, 0, false)
 			end
 
@@ -283,6 +289,7 @@ function Module.RenderGUI()
 end
 
 function Module.Unload()
+	mq.unbind("/spritehud")
 end
 
 function Module.CommandHandler(...)
@@ -321,13 +328,13 @@ end
 function Module.UpdateStatus()
 	if not Module.ShowGui then return end
 	local zoneType = mq.TLO.Zone.Type() or 0
-	status.Combat = myself.Combat() or false
+	status.Combat = debugEfx.combat or myself.Combat()
 	status.Sitting = myself.Sitting() or false
-	status.FeetWet = myself.FeetWet() or false
-	status.UnderWater = myself.Underwater() or false
+	status.FeetWet = debugEfx.feetwet or myself.FeetWet()
+	status.UnderWater = debugEfx.underwater or myself.Underwater()
 	status.Dungeon = debugEfx.dungeon or mq.TLO.Zone.Dungeon()
 	status.Outside = debugEfx.outside or mq.TLO.Zone.Outdoor()
-	status.Casting = myself.Casting() or false
+	status.Casting = debugEfx.casting or myself.Casting()
 	status.Night = debugEfx.night or mq.TLO.GameTime.Night()
 	status.Poisoned = debugEfx.poisoned or myself.Poisoned()
 	status.Diseased = debugEfx.diseased or myself.Diseased()
@@ -343,6 +350,7 @@ function Module.UpdateStatus()
 	if debugEfx.day then
 		status.Night = false
 	end
+
 	local speed = myself.Speed() or 0
 	if speed <= 5 and speed >= -5 then
 		status.Moving = false
@@ -394,6 +402,7 @@ function Module.MainLoop()
 		end
 		mq.delay(1)
 	end
+	Module.Unload()
 end
 
 function Module.LocalLoop()
