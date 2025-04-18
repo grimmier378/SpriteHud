@@ -197,7 +197,9 @@ function Module.RenderGUI()
 			cursorX, cursorY = ImGui.GetCursorPos()
 
 			-- draw background
-			if status.Indoor or status.Outside and not debugEfx.dungeon then
+			if status.UnderWater then
+				DrawAnimatedFrame(efxTexture, 7, 3, false)
+			elseif status.Indoor or status.Outside and not debugEfx.dungeon then
 				if status.Night then
 					DrawAnimatedFrame(efxTexture, 3, 2, true)
 				else
@@ -252,6 +254,8 @@ function Module.RenderGUI()
 			if status.Casting then
 				if debugEfx.casting then
 					DrawAnimatedFrame(efxTexture, 5, efxFrame, true)
+				elseif mq.TLO.Spell(myself.Casting()).Category() == 'Create Item' or mq.TLO.Spell(myself.Casting()).Category() == 'Pet' then
+					DrawAnimatedFrame(efxTexture, 7, efxFrame, true)
 				elseif mq.TLO.Spell(myself.Casting()).Beneficial() then
 					DrawAnimatedFrame(efxTexture, 5, efxFrame, true)
 				else
