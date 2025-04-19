@@ -14,7 +14,7 @@ local filePath = nil -- this will be set to the script folder if not loaded exte
 local spriteTexture = nil
 local efxTexture = nil
 local casterTexture = nil
-
+local efx2Texture = nil
 
 local imgSize = 64  -- This is the size to draw the image
 local targetFPS = 6 -- Target FPS for the animation
@@ -103,6 +103,7 @@ local function LoadImages()
 	spriteTexture = mq.CreateTexture(filePath .. 'sprite_sheet_1k.png')
 	efxTexture = mq.CreateTexture(filePath .. 'efx_overlay_sheet_1k.png')
 	casterTexture = mq.CreateTexture(filePath .. 'casters_sheet_1k.png')
+	efx2Texture = mq.CreateTexture(filePath .. 'efx_overlay_sheet2_1k.png')
 end
 
 local function Init()
@@ -202,7 +203,7 @@ function Module.RenderGUI()
 			show = false
 			Module.ShowGui = false
 		end
-		if show and efxTexture ~= nil and spriteTexture ~= nil and casterTexture ~= nil then
+		if show and efxTexture ~= nil and spriteTexture ~= nil and casterTexture ~= nil and efx2Texture ~= nil then
 			-------- Sprite Animation Style
 			local heading = myself.Heading.Degrees() or 0
 			local rowNum = HeadingToRowNum(heading)
@@ -230,7 +231,11 @@ function Module.RenderGUI()
 			-- Draw the sprite
 			if status.Sitting then
 				local colIdx = isFemale and 2 or 1
-				DrawAnimatedFrame(efxTexture, 3, colIdx, false)
+				if status.Caster then
+					DrawAnimatedFrame(efx2Texture, 3, colIdx, false)
+				else
+					DrawAnimatedFrame(efxTexture, 3, colIdx, false)
+				end
 			else
 				local drawFrame = currentFrame
 				if not status.Moving then
@@ -238,7 +243,11 @@ function Module.RenderGUI()
 				end
 
 				if status.Combat then
-					DrawAnimatedFrame(efxTexture, 6, currentFrame, isFemale)
+					if status.Caster then
+						DrawAnimatedFrame(efx2Texture, 6, currentFrame, isFemale)
+					else
+						DrawAnimatedFrame(efxTexture, 6, currentFrame, isFemale)
+					end
 				elseif status.ResSick or status.Hovering then
 					DrawAnimatedFrame(efxTexture, 0, efxFrame, true)
 				elseif status.Caster then
