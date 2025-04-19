@@ -63,8 +63,13 @@ local debugEfx = {
 	feigning = false,
 	skele = false,
 	werewolf = false,
+	wolf = false,
+	bear = false,
+	lich = false,
+	elemental = false,
 }
 local status = {
+	Elemental = false,
 	Skele = false,
 	Werewolf = false,
 	Combat = false,
@@ -86,6 +91,9 @@ local status = {
 	Rooted = false,
 	Hovering = false,
 	ResSick = false,
+	Bear = false,
+	Wolf = false,
+	Lich = false,
 }
 
 -- directions to row mapping for the sprite sheet
@@ -106,6 +114,8 @@ local casters = {
 	['ENC'] = true,
 	['MAG'] = true,
 }
+
+local lastTime = mq.gettime()
 
 local function LoadImages()
 	spriteTexture = mq.CreateTexture(filePath .. 'sprite_sheet_1k.png')
@@ -263,6 +273,14 @@ function Module.RenderGUI()
 						DrawAnimatedFrame(efx2Texture, 0, efxFrame, false)
 					elseif status.Skele then
 						DrawAnimatedFrame(efx2Texture, 0, efxFrame, true)
+					elseif status.Wolf then
+						DrawAnimatedFrame(efx2Texture, 2, efxFrame, true)
+					elseif status.Bear then
+						DrawAnimatedFrame(efx2Texture, 1, efxFrame, true)
+					elseif status.Lich then
+						DrawAnimatedFrame(efx2Texture, 1, efxFrame, false)
+					elseif status.Elemental then
+						DrawAnimatedFrame(efx2Texture, 2, efxFrame, false)
 					elseif status.Caster then
 						DrawAnimatedFrame(efx2Texture, 6, currentFrame, isFemale)
 					else
@@ -395,8 +413,13 @@ function Module.UpdateStatus()
 	status.ResSick = debugEfx.ressick or myself.Buff("Resurrection Sickness")() ~= nil
 	status.Indoor = debugEfx.indoor or (zoneType == 3 or zoneType == 4)
 	status.Feigning = debugEfx.feigning or myself.Feigning()
-	status.Skele = debugEfx.skele or myself.Buff('Skeletal')() ~= nil or myself.Buff('Lich')() or myself.Buff('dry bone')() ~= nil or myself.Buff('Skeleton')() ~= nil
-	status.Werewolf = debugEfx.werewolf or myself.Buff('Werewolf')() ~= nil or myself.Buff('boon of the garou')() ~= nil
+	status.Skele = debugEfx.skele or myself.Race() == 'Skeleton'
+	status.Werewolf = debugEfx.werewolf or myself.Race() == 'Werewolf'
+	status.Wolf = debugEfx.wolf or myself.Race() == 'Wolf'
+	status.Bear = debugEfx.bear or myself.Race() == 'Bear'
+	status.Lich = debugEfx.lich or myself.Race() == 'Lich'
+	status.Elemental = debugEfx.elemental or myself.Race() == 'Elemental'
+
 
 	if casters[myClass] ~= nil or debugEfx.caster then
 		status.Caster = true
@@ -456,9 +479,13 @@ end
 function Module.MainLoop()
 	while Module.ShowGui do
 		local nowTime = mq.gettime()
-		Module.UpdateStatus()
 
-		-- Sprite Sheet Animation
+		-- update status every 100ms to reduce CPU usage
+		if nowTime - lastTime > 100 then
+			Module.UpdateStatus()
+		end
+
+		-- update sprite frame every frameTime so we can target the FPS we want
 		if nowTime - lastSpriteFrameTime > frameTime then
 			currentFrame = (currentFrame + 1) % totalFrames
 			efxFrame = (efxFrame + 1) % totalFrames
