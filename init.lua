@@ -38,6 +38,7 @@ local femaleOffset = 4
 local cursorX = 0
 local cursorY = 0
 local debugStatus = false -- set to true to force all status effects to be true for testing
+local sortedTbl = {}
 local debugEfx = {
 	casting = false,
 	cursed = false,
@@ -58,9 +59,16 @@ local debugEfx = {
 	feetwet = false,
 	underwater = false,
 	combat = false,
+	female = false,
+	feigning = false,
+	skele = false,
+	werewolf = false,
 }
 local status = {
+	Skele = false,
+	Werewolf = false,
 	Combat = false,
+	Feigning = false,
 	Caster = false,
 	Sitting = false,
 	FeetWet = false,
@@ -175,11 +183,11 @@ function Module.RenderConfig()
 		if ImGui.BeginTable("##DebugEfx", 4) then
 			ImGui.TableNextRow()
 			ImGui.TableNextColumn()
-			for k, v in pairs(debugEfx) do
-				ImGui.PushID(k)
-				ImGui.Text(k)
+			for _, data in ipairs(sortedTbl) do
+				ImGui.PushID(data.name)
+				ImGui.Text(data.name)
 				ImGui.TableNextColumn()
-				debugEfx[k] = ImGui.Checkbox("##Dbg", v)
+				debugEfx[data.name] = ImGui.Checkbox("##Dbg", data.value)
 				ImGui.TableNextColumn()
 				ImGui.PopID()
 			end
@@ -232,9 +240,17 @@ function Module.RenderGUI()
 			if status.Sitting then
 				local colIdx = isFemale and 2 or 1
 				if status.Caster then
+					colIdx = isFemale and 3 or 2
 					DrawAnimatedFrame(efx2Texture, 3, colIdx, false)
 				else
 					DrawAnimatedFrame(efxTexture, 3, colIdx, false)
+				end
+			elseif status.Feigning then
+				local colIdx = isFemale and 1 or 0
+				if status.Caster then
+					DrawAnimatedFrame(efx2Texture, 3, colIdx, false)
+				else
+					DrawAnimatedFrame(efx2Texture, 3, colIdx, true)
 				end
 			else
 				local drawFrame = currentFrame
@@ -243,7 +259,11 @@ function Module.RenderGUI()
 				end
 
 				if status.Combat then
-					if status.Caster then
+					if status.Werewolf then
+						DrawAnimatedFrame(efx2Texture, 0, efxFrame, false)
+					elseif status.Skele then
+						DrawAnimatedFrame(efx2Texture, 0, efxFrame, true)
+					elseif status.Caster then
 						DrawAnimatedFrame(efx2Texture, 6, currentFrame, isFemale)
 					else
 						DrawAnimatedFrame(efxTexture, 6, currentFrame, isFemale)
@@ -374,9 +394,14 @@ function Module.UpdateStatus()
 	status.Hovering = debugEfx.hovering or myself.Hovering()
 	status.ResSick = debugEfx.ressick or myself.Buff("Resurrection Sickness")() ~= nil
 	status.Indoor = debugEfx.indoor or (zoneType == 3 or zoneType == 4)
+	status.Feigning = debugEfx.feigning or myself.Feigning()
+	status.Skele = debugEfx.skele or myself.Buff('Skeletal')() ~= nil or myself.Buff('Lich')() or myself.Buff('dry bone')() ~= nil or myself.Buff('Skeleton')() ~= nil
+	status.Werewolf = debugEfx.werewolf or myself.Buff('Werewolf')() ~= nil or myself.Buff('boon of the garou')() ~= nil
 
 	if casters[myClass] ~= nil or debugEfx.caster then
 		status.Caster = true
+	else
+		status.Caster = false
 	end
 
 
@@ -395,7 +420,7 @@ function Module.UpdateStatus()
 	local buffCount = myself.BuffCount() or 0
 	local songCount = myself.CountSongs() or 0
 
-	isFemale = myself.Gender() == 'female'
+	isFemale = debugEfx.female or myself.Gender() == 'female'
 
 	local checkHot = false
 	if buffCount > 0 then
@@ -421,6 +446,11 @@ function Module.UpdateStatus()
 		end
 	end
 	hasHoT = checkHot or debugEfx.hot
+	sortedTbl = {}
+	for k, v in pairs(debugEfx) do
+		table.insert(sortedTbl, { name = k, value = v, })
+	end
+	table.sort(sortedTbl, function(a, b) return a.name < b.name end)
 end
 
 function Module.MainLoop()
