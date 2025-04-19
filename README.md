@@ -18,4 +18,19 @@
 - Hovering \ Rez Efx
 - Heal over Time
 
+## Combat Animations
+
+- Normal (Male \ female)
+- Casters (male \ female)
+- Wolf Form
+- Skeleton Form
+- Lich Form
+- Bear Form
+- Elemental Form
+- Werewolf Form
+
+
 https://youtu.be/KwhJQSsV1O4
+
+https://github.com/user-attachments/assets/02edb0ac-f970-4795-b5a2-1dec63aefe67
+
