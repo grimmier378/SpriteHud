@@ -13,6 +13,8 @@ Module.ShowGui = false
 local filePath = nil -- this will be set to the script folder if not loaded externally
 local spriteTexture = nil
 local efxTexture = nil
+local casterTexture = nil
+
 
 local imgSize = 64  -- This is the size to draw the image
 local targetFPS = 6 -- Target FPS for the animation
@@ -46,6 +48,7 @@ local debugEfx = {
 	hovering = false,
 	snared = false,
 	rooted = false,
+	caster = false,
 	night = false,
 	indoor = false,
 	day = false,
@@ -58,6 +61,7 @@ local debugEfx = {
 }
 local status = {
 	Combat = false,
+	Caster = false,
 	Sitting = false,
 	FeetWet = false,
 	UnderWater = false,
@@ -88,9 +92,17 @@ local directions = {
 	[7] = 6, -- NW
 }
 
+local casters = {
+	['WIZ'] = true,
+	['NEC'] = true,
+	['ENC'] = true,
+	['MAG'] = true,
+}
+
 local function LoadImages()
 	spriteTexture = mq.CreateTexture(filePath .. 'sprite_sheet_1k.png')
 	efxTexture = mq.CreateTexture(filePath .. 'efx_overlay_sheet_1k.png')
+	casterTexture = mq.CreateTexture(filePath .. 'casters_sheet_1k.png')
 end
 
 local function Init()
@@ -190,7 +202,7 @@ function Module.RenderGUI()
 			show = false
 			Module.ShowGui = false
 		end
-		if show and efxTexture ~= nil and spriteTexture ~= nil then
+		if show and efxTexture ~= nil and spriteTexture ~= nil and casterTexture ~= nil then
 			-------- Sprite Animation Style
 			local heading = myself.Heading.Degrees() or 0
 			local rowNum = HeadingToRowNum(heading)
@@ -229,6 +241,8 @@ function Module.RenderGUI()
 					DrawAnimatedFrame(efxTexture, 6, currentFrame, isFemale)
 				elseif status.ResSick or status.Hovering then
 					DrawAnimatedFrame(efxTexture, 0, efxFrame, true)
+				elseif status.Caster then
+					DrawAnimatedFrame(casterTexture, rowNum, drawFrame, isFemale)
 				else
 					DrawAnimatedFrame(spriteTexture, rowNum, drawFrame, isFemale)
 				end
@@ -331,6 +345,7 @@ end
 
 function Module.UpdateStatus()
 	if not Module.ShowGui then return end
+	local myClass = myself.Class.ShortName() or "Unknown"
 	local zoneType = mq.TLO.Zone.Type() or 0
 	status.Combat = debugEfx.combat or myself.Combat()
 	status.Sitting = myself.Sitting() or false
@@ -350,6 +365,12 @@ function Module.UpdateStatus()
 	status.Hovering = debugEfx.hovering or myself.Hovering()
 	status.ResSick = debugEfx.ressick or myself.Buff("Resurrection Sickness")() ~= nil
 	status.Indoor = debugEfx.indoor or (zoneType == 3 or zoneType == 4)
+
+	if casters[myClass] ~= nil or debugEfx.caster then
+		status.Caster = true
+	end
+
+
 
 	if debugEfx.day then
 		status.Night = false
