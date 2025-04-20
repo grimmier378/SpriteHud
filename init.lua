@@ -284,7 +284,7 @@ function Module.RenderGUI()
 
 			-- draw background
 			if status.UnderWater then
-				DrawAnimatedFrame(efxTexture, 7, 3, false)
+				DrawAnimatedFrame(efxTexture, 3, 3, false)
 			elseif status.Indoor or status.Outside and not debugBackground.dungeon then
 				if status.Night then
 					DrawAnimatedFrame(efxTexture, 3, 2, true)
@@ -303,12 +303,11 @@ function Module.RenderGUI()
 
 			-- Draw the sprite
 			if status.Sitting then
-				local colIdx = isFemale and 2 or 1
+				local colIdx = isFemale and 3 or 2
 				if status.Caster then
-					colIdx = isFemale and 3 or 2
 					DrawAnimatedFrame(efx2Texture, 3, colIdx, false)
 				else
-					DrawAnimatedFrame(efxTexture, 3, colIdx, false)
+					DrawAnimatedFrame(efx2Texture, 3, colIdx, true)
 				end
 			elseif status.Feigning then
 				local colIdx = isFemale and 1 or 0
@@ -344,7 +343,7 @@ function Module.RenderGUI()
 						end
 					else
 						if debugCombat.combatOldMelee then
-							DrawAnimatedFrame(efxTexture, 6, currentFrame, isFemale)
+							DrawAnimatedFrame(efx2Texture, 7, currentFrame, isFemale)
 						else
 							DrawAnimatedFrame(efx2Texture, 4, currentFrame, isFemale)
 						end
@@ -394,9 +393,9 @@ function Module.RenderGUI()
 			end
 
 			if status.FeetWet and not status.UnderWater then
-				DrawAnimatedFrame(efxTexture, 3, 3, false)
+				DrawAnimatedFrame(efxTexture, 3, 1, false)
 			elseif (status.FeetWet and status.UnderWater) or debugEfx.underwater then
-				DrawAnimatedFrame(efxTexture, 3, 0, false)
+				DrawAnimatedFrame(efxTexture, 3, 2, false)
 			end
 
 			-- draw the border
