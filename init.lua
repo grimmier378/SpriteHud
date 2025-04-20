@@ -39,6 +39,18 @@ local cursorX = 0
 local cursorY = 0
 local debugStatus = false -- set to true to force all status effects to be true for testing
 local sortedTbl = {}
+local sortedBackground = {}
+local sortedCombat = {}
+
+local debugBackground = {
+	indoor = false,
+	outdoor = false,
+	dungeon = false,
+	night = false,
+	day = false,
+	underwater = false,
+}
+
 local debugEfx = {
 	casting = false,
 	cursed = false,
@@ -49,25 +61,28 @@ local debugEfx = {
 	hovering = false,
 	snared = false,
 	rooted = false,
-	caster = false,
-	night = false,
-	indoor = false,
-	day = false,
 	hot = false,
-	outside = false,
-	dungeon = false,
 	feetwet = false,
 	underwater = false,
-	combat = false,
-	female = false,
 	feigning = false,
+
+}
+
+local debugCombat = {
 	skele = false,
 	werewolf = false,
 	wolf = false,
 	bear = false,
 	lich = false,
 	elemental = false,
+	combatOldCaster = false,
+	combatOldMelee = false,
+	female = false,
+	male = false,
+	combat = false,
+	caster = false,
 }
+
 local status = {
 	Elemental = false,
 	Skele = false,
@@ -189,7 +204,7 @@ function Module.RenderConfig()
 		imgSize = ImGui.InputInt("Sprite Size##SpriteSize", imgSize, 1, 512)
 
 		local cnt = 1
-		ImGui.Text("Debug EFX:")
+		ImGui.SeparatorText("Debug EFX:")
 		if ImGui.BeginTable("##DebugEfx", 4) then
 			ImGui.TableNextRow()
 			ImGui.TableNextColumn()
@@ -203,11 +218,51 @@ function Module.RenderConfig()
 			end
 			ImGui.EndTable()
 		end
+		ImGui.SeparatorText("Debug Background:")
+		if ImGui.BeginTable("##DebugBackground", 4) then
+			ImGui.TableNextRow()
+			ImGui.TableNextColumn()
+			for _, data in ipairs(sortedBackground) do
+				ImGui.PushID(data.name)
+				ImGui.Text(data.name)
+				ImGui.TableNextColumn()
+				debugBackground[data.name] = ImGui.Checkbox("##Dbg", data.value)
+				ImGui.TableNextColumn()
+				ImGui.PopID()
+			end
+			ImGui.EndTable()
+		end
+		ImGui.SeparatorText("Debug Combat:")
+		if ImGui.BeginTable("##DebugCombat", 4) then
+			ImGui.TableNextRow()
+			ImGui.TableNextColumn()
+			for _, data in ipairs(sortedCombat) do
+				ImGui.PushID(data.name)
+				ImGui.Text(data.name)
+				ImGui.TableNextColumn()
+				debugCombat[data.name] = ImGui.Checkbox("##Dbg", data.value)
+				ImGui.TableNextColumn()
+				ImGui.PopID()
+			end
+			ImGui.EndTable()
+		end
 	end
 	if not open then
 		Module.ShowConfig = false
 	end
 	ImGui.End()
+end
+
+function Module.ContextMenu()
+	if ImGui.BeginPopupContextWindow("Sprite HUD Context Menu") then
+		if ImGui.MenuItem("Config", nil, Module.ShowConfig) then
+			Module.ShowConfig = not Module.ShowConfig
+		end
+		if ImGui.MenuItem("Close", nil, false) then
+			Module.ShowGui = false
+		end
+		ImGui.EndPopup()
+	end
 end
 
 function Module.RenderGUI()
@@ -230,7 +285,7 @@ function Module.RenderGUI()
 			-- draw background
 			if status.UnderWater then
 				DrawAnimatedFrame(efxTexture, 7, 3, false)
-			elseif status.Indoor or status.Outside and not debugEfx.dungeon then
+			elseif status.Indoor or status.Outside and not debugBackground.dungeon then
 				if status.Night then
 					DrawAnimatedFrame(efxTexture, 3, 2, true)
 				else
@@ -282,9 +337,17 @@ function Module.RenderGUI()
 					elseif status.Elemental then
 						DrawAnimatedFrame(efx2Texture, 2, efxFrame, false)
 					elseif status.Caster then
-						DrawAnimatedFrame(efx2Texture, 6, currentFrame, isFemale)
+						if debugCombat.combatOldCaster then
+							DrawAnimatedFrame(efx2Texture, 6, currentFrame, isFemale)
+						else
+							DrawAnimatedFrame(efx2Texture, 5, currentFrame, isFemale)
+						end
 					else
-						DrawAnimatedFrame(efxTexture, 6, currentFrame, isFemale)
+						if debugCombat.combatOldMelee then
+							DrawAnimatedFrame(efxTexture, 6, currentFrame, isFemale)
+						else
+							DrawAnimatedFrame(efx2Texture, 4, currentFrame, isFemale)
+						end
 					end
 				elseif status.ResSick or status.Hovering then
 					DrawAnimatedFrame(efxTexture, 0, efxFrame, true)
@@ -344,6 +407,8 @@ function Module.RenderGUI()
 			else
 				DrawAnimatedFrame(efxTexture, 7, 0, false)
 			end
+
+			Module.ContextMenu()
 		end
 		ImGui.PopStyleColor()
 		ImGui.PopStyleVar()
@@ -394,14 +459,14 @@ function Module.UpdateStatus()
 	if not Module.ShowGui then return end
 	local myClass = myself.Class.ShortName() or "Unknown"
 	local zoneType = mq.TLO.Zone.Type() or 0
-	status.Combat = debugEfx.combat or myself.Combat()
+	status.Combat = debugCombat.combat or myself.Combat()
 	status.Sitting = myself.Sitting() or false
 	status.FeetWet = debugEfx.feetwet or myself.FeetWet()
-	status.UnderWater = debugEfx.underwater or myself.Underwater()
-	status.Dungeon = debugEfx.dungeon or mq.TLO.Zone.Dungeon()
-	status.Outside = debugEfx.outside or mq.TLO.Zone.Outdoor()
+	status.UnderWater = debugBackground.underwater or myself.Underwater()
+	status.Dungeon = debugBackground.dungeon or mq.TLO.Zone.Dungeon()
+	status.Outside = debugBackground.outside or mq.TLO.Zone.Outdoor()
 	status.Casting = debugEfx.casting or myself.Casting()
-	status.Night = debugEfx.night or mq.TLO.GameTime.Night()
+	status.Night = debugBackground.night or mq.TLO.GameTime.Night()
 	status.Poisoned = debugEfx.poisoned or myself.Poisoned()
 	status.Diseased = debugEfx.diseased or myself.Diseased()
 	status.Cursed = debugEfx.cursed or myself.Cursed()
@@ -411,17 +476,17 @@ function Module.UpdateStatus()
 	status.Rooted = debugEfx.rooted or myself.Rooted()
 	status.Hovering = debugEfx.hovering or myself.Hovering()
 	status.ResSick = debugEfx.ressick or myself.Buff("Resurrection Sickness")() ~= nil
-	status.Indoor = debugEfx.indoor or (zoneType == 3 or zoneType == 4)
+	status.Indoor = debugBackground.indoor or (zoneType == 3 or zoneType == 4)
 	status.Feigning = debugEfx.feigning or myself.Feigning()
-	status.Skele = debugEfx.skele or myself.Race() == 'Skeleton'
-	status.Werewolf = debugEfx.werewolf or myself.Race() == 'Werewolf'
-	status.Wolf = debugEfx.wolf or myself.Race() == 'Wolf'
-	status.Bear = debugEfx.bear or myself.Race() == 'Bear'
-	status.Lich = debugEfx.lich or myself.Race() == 'Lich'
-	status.Elemental = debugEfx.elemental or myself.Race() == 'Elemental'
+	status.Skele = debugCombat.skele or myself.Race() == 'Skeleton'
+	status.Werewolf = debugCombat.werewolf or myself.Race() == 'Werewolf'
+	status.Wolf = debugCombat.wolf or myself.Race() == 'Wolf'
+	status.Bear = debugCombat.bear or myself.Race() == 'Bear'
+	status.Lich = debugCombat.lich or myself.Race() == 'Lich'
+	status.Elemental = debugCombat.elemental or myself.Race() == 'Elemental'
 
 
-	if casters[myClass] ~= nil or debugEfx.caster then
+	if casters[myClass] ~= nil or debugCombat.caster then
 		status.Caster = true
 	else
 		status.Caster = false
@@ -429,7 +494,7 @@ function Module.UpdateStatus()
 
 
 
-	if debugEfx.day then
+	if debugBackground.day then
 		status.Night = false
 	end
 
@@ -443,7 +508,10 @@ function Module.UpdateStatus()
 	local buffCount = myself.BuffCount() or 0
 	local songCount = myself.CountSongs() or 0
 
-	isFemale = debugEfx.female or myself.Gender() == 'female'
+	isFemale = debugCombat.female or myself.Gender() == 'female'
+	if debugCombat.male then
+		isFemale = false
+	end
 
 	local checkHot = false
 	if buffCount > 0 then
@@ -474,6 +542,16 @@ function Module.UpdateStatus()
 		table.insert(sortedTbl, { name = k, value = v, })
 	end
 	table.sort(sortedTbl, function(a, b) return a.name < b.name end)
+	sortedBackground = {}
+	for k, v in pairs(debugBackground) do
+		table.insert(sortedBackground, { name = k, value = v, })
+	end
+	table.sort(sortedBackground, function(a, b) return a.name < b.name end)
+	sortedCombat = {}
+	for k, v in pairs(debugCombat) do
+		table.insert(sortedCombat, { name = k, value = v, })
+	end
+	table.sort(sortedCombat, function(a, b) return a.name < b.name end)
 end
 
 function Module.MainLoop()
