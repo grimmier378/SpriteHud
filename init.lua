@@ -9,6 +9,16 @@ end
 Module.Name = "SriteHud" -- Name of the module used when loading and unloaing the modules.
 Module.IsRunning = false -- Keep track of running state. if not running we can unload it.
 Module.ShowGui = false
+local myself = mq.TLO.Me
+local myName = myself.Name() or "Unknown"
+local isFemale = myself.Gender() == 'female'
+local hasHoT = false
+local cursorX = 0
+local cursorY = 0
+local debugStatus = false -- set to true to force all status effects to be true for testing
+local sortedTbl = {}
+local sortedBackground = {}
+local sortedCombat = {}
 
 local filePath = nil -- this will be set to the script folder if not loaded externally
 local spriteTexture = nil
@@ -16,31 +26,21 @@ local efxTexture = nil
 local casterTexture = nil
 local efx2Texture = nil
 
-local imgSize = 64  -- This is the size to draw the image
-local targetFPS = 6 -- Target FPS for the animation
-
 -- sprite draw variables
-local spriteSheetSize = 1024 -- size of the sprite sheet
-local spriteSheetCols = 8    -- number of columns in the sprite sheet
-local totalFrames = 4        -- Total number of frames
-local currentFrame = 0
-local efxFrame = 0
+local targetFPS = 6                                   -- Target FPS for the animation
+local imgSize = 64                                    -- This is the size to draw the image
+local rightOffset = 4                                 -- number of columns to offset to the right to draw the columns 4-7
+local spriteSheetSize = 1024                          -- size of the sprite sheet should be Square example 1024x1024 or 512x512
+local spriteSheetCols = 8                             -- number of columns in the sprite sheet
+local totalFrames = 4                                 -- Total number of frames to animate (4 frames for each direction)
+local currentFrame = 0                                -- Current frame to draw start at 0 (0-3) for columns 4-7 use 0-3 and the rightOffset to get the correct column
+local efxFrame = 0                                    -- current frame to draw for efx
 local frameTime = 1000 / targetFPS                    -- 1second divided by number of images (for number of images per second FPS setting)
 local lastSpriteFrameTime = mq.gettime()
 local frameWidth = spriteSheetSize / spriteSheetCols  -- total columns (4 male + 4 female)
 local frameHeight = spriteSheetSize / spriteSheetCols -- 8 rows for 8 directions
 local colPerAnimation = spriteSheetCols / 2
-local myself = mq.TLO.Me
-local myName = myself.Name() or "Unknown"
-local isFemale = myself.Gender() == 'female'
-local hasHoT = false
-local femaleOffset = 4
-local cursorX = 0
-local cursorY = 0
-local debugStatus = false -- set to true to force all status effects to be true for testing
-local sortedTbl = {}
-local sortedBackground = {}
-local sortedCombat = {}
+
 
 local debugBackground = {
 	indoor = false,
@@ -75,8 +75,8 @@ local debugCombat = {
 	bear = false,
 	lich = false,
 	elemental = false,
-	combatOldCaster = false,
-	combatOldMelee = false,
+	oldCaster = false,
+	noArmor = false,
 	female = false,
 	male = false,
 	combat = false,
@@ -175,7 +175,7 @@ local winFlags = bit32.bor(
 ---@param colNum integer the column number to draw from (0-3) there are 8 columns but we offset to get to the last 4. Any animation uses 4 cells at most.
 ---@param isOffset boolean|nil If the column is higher than 3 then we will need to offset, mostly used for female animations but also some efx
 function DrawAnimatedFrame(textureMap, rowNum, colNum, isOffset)
-	local genderOffset = isOffset and femaleOffset or 0
+	local genderOffset = isOffset and rightOffset or 0
 
 	local col = (colNum % colPerAnimation) + genderOffset
 
@@ -201,8 +201,8 @@ function Module.RenderConfig()
 	if not Module.ShowConfig then return end
 	local open, show = ImGui.Begin("Sprite HUD Config", Module.ShowConfig)
 	if show then
-		imgSize = ImGui.InputInt("Sprite Size##SpriteSize", imgSize, 1, 512)
-
+		imgSize = ImGui.DragInt("Sprite Size##SpriteSize", imgSize, 1, 1, 512)
+		targetFPS = ImGui.DragInt("Animation Speed##SpriteFPS", targetFPS, 1, 1, 30)
 		local cnt = 1
 		ImGui.SeparatorText("Debug EFX:")
 		if ImGui.BeginTable("##DebugEfx", 4) then
@@ -336,13 +336,13 @@ function Module.RenderGUI()
 					elseif status.Elemental then
 						DrawAnimatedFrame(efx2Texture, 2, efxFrame, false)
 					elseif status.Caster then
-						if debugCombat.combatOldCaster then
+						if debugCombat.oldCaster then
 							DrawAnimatedFrame(efx2Texture, 6, currentFrame, isFemale)
 						else
 							DrawAnimatedFrame(efx2Texture, 5, currentFrame, isFemale)
 						end
 					else
-						if debugCombat.combatOldMelee then
+						if debugCombat.noArmor then
 							DrawAnimatedFrame(efx2Texture, 7, currentFrame, isFemale)
 						else
 							DrawAnimatedFrame(efx2Texture, 4, currentFrame, isFemale)
@@ -450,6 +450,29 @@ function Module.CommandHandler(...)
 		if size and size > 0 then
 			printf("\aw[\at%s\ax] \aoChanging Sprite Size from\ax (\at%s\ax) \aoto \ax(\ay%s\ax). ", Module.Name, imgSize, size)
 			imgSize = size
+		end
+	elseif #args == 2 and args[1] == 'speed' then
+		if args[2] == 'up' then
+			targetFPS = targetFPS + 1
+			if targetFPS > 15 then
+				targetFPS = 15
+			end
+			printf("\aw[\at%s\ax] \ayIncreasing FPS to\ax \at%s\ax", Module.Name, targetFPS)
+		elseif args[2] == 'down' then
+			targetFPS = targetFPS - 1
+			if targetFPS < 1 then
+				targetFPS = 1
+			end
+			printf("\aw[\at%s\ax] \ayDecreasing FPS to\ax \at%s\ax", Module.Name, targetFPS)
+		elseif args[2] == 'reset' then
+			targetFPS = 6
+			printf("\aw[\at%s\ax] \ayResetting FPS to\ax \at%s\ax", Module.Name, targetFPS)
+		elseif tonumber(args[2]) then
+			targetFPS = tonumber(args[2])
+			if targetFPS < 1 then
+				targetFPS = 1
+			end
+			printf("\aw[\at%s\ax] \aySetting FPS to\ax \at%s\ax", Module.Name, targetFPS)
 		end
 	end
 end
@@ -563,6 +586,7 @@ function Module.MainLoop()
 		end
 
 		-- update sprite frame every frameTime so we can target the FPS we want
+		frameTime = 1000 / targetFPS
 		if nowTime - lastSpriteFrameTime > frameTime then
 			currentFrame = (currentFrame + 1) % totalFrames
 			efxFrame = (efxFrame + 1) % totalFrames
