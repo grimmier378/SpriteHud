@@ -12,6 +12,7 @@ Module.ShowGui = false
 local myself = mq.TLO.Me
 local myName = myself.Name() or "Unknown"
 local isFemale = myself.Gender() == 'female'
+local myClass = myself.Class.ShortName() or "Unknown"
 local hasHoT = false
 local cursorX = 0
 local cursorY = 0
@@ -41,6 +42,21 @@ local frameWidth = spriteSheetSize / spriteSheetCols  -- total columns (4 male +
 local frameHeight = spriteSheetSize / spriteSheetCols -- 8 rows for 8 directions
 local colPerAnimation = spriteSheetCols / 2
 local args = { ..., }
+
+local casters = {
+	['WIZ'] = true,
+	['NEC'] = true,
+	['ENC'] = true,
+	['MAG'] = true,
+}
+
+local plateClass = {
+	['PAL'] = true,
+	['WAR'] = true,
+	['CLR'] = true,
+	['SHD'] = true,
+	['BRD'] = true,
+}
 
 local manualBackground = {
 	indoor = false,
@@ -81,13 +97,13 @@ local manualSprite = {
 	lich = false,
 	elemental = false,
 	oldcaster = false,
-	noarmor = false,
-	female = false,
-	male = false,
+	noarmor = plateClass[myClass] == nil,
+	female = isFemale,
+	male = not isFemale,
 	combat = false,
-	caster = false,
+	caster = casters[myClass] ~= nil,
 	melee = false,
-	plate = false,
+	plate = plateClass[myClass] ~= nil,
 }
 
 local status = {
@@ -153,21 +169,6 @@ function GetInvisCell(directionVal)
 		return 6
 	end
 end
-
-local casters = {
-	['WIZ'] = true,
-	['NEC'] = true,
-	['ENC'] = true,
-	['MAG'] = true,
-}
-
-local plateClass = {
-	['PAL'] = true,
-	['WAR'] = true,
-	['CLR'] = true,
-	['SHD'] = true,
-	['BRD'] = true,
-}
 
 local lastTime = mq.gettime()
 
@@ -660,6 +661,12 @@ function Module.UpdateStatus()
 
 	if manualBackground.day then
 		status.Night = false
+	end
+
+	if status.Caster and status.Casting then
+		if not mq.TLO.Spell(myself.Casting()).Beneficial() then
+			status.Combat = true
+		end
 	end
 
 	local speed = myself.Speed() or 0
