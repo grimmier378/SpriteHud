@@ -87,6 +87,7 @@ local manualSprite = {
 	combat = false,
 	caster = false,
 	melee = false,
+	plate = false,
 }
 
 local status = {
@@ -120,6 +121,7 @@ local status = {
 	Silenced = false,
 	Feared = false,
 	Looting = false,
+	Armor = false,
 }
 
 -- directions to row mapping for the sprite sheet
@@ -159,6 +161,14 @@ local casters = {
 	['MAG'] = true,
 }
 
+local plateClass = {
+	['PAL'] = true,
+	['WAR'] = true,
+	['CLR'] = true,
+	['SHD'] = true,
+	['BRD'] = true,
+}
+
 local lastTime = mq.gettime()
 
 local function LoadImages()
@@ -193,6 +203,26 @@ local function checkArgs()
 	end
 end
 
+local function sortTables()
+	sortedTbl = {}
+	for k, v in pairs(manualEfx) do
+		table.insert(sortedTbl, { name = k, value = v, })
+	end
+	table.sort(sortedTbl, function(a, b) return a.name < b.name end)
+	sortedBackground = {}
+	for k, v in pairs(manualBackground) do
+		table.insert(sortedBackground, { name = k, value = v, })
+	end
+	table.sort(sortedBackground, function(a, b) return a.name < b.name end)
+	sortedCombat = {}
+	for k, v in pairs(manualSprite) do
+		table.insert(sortedCombat, { name = k, value = v, })
+	end
+	table.sort(sortedCombat, function(a, b) return a.name < b.name end)
+end
+
+
+
 local function Init()
 	Module.IsRunning = true
 
@@ -211,6 +241,7 @@ local function Init()
 		filePath = string.format("%s/%s/images/", mq.luaDir, scriptFolder)
 		LoadImages()
 	end
+	sortTables()
 	printf("\aw[\at%s\ax] \aySprite Size is set to\ax \at%s\ax", Module.Name, imgSize)
 	printf("\aw[\at%s\ax] \ay/spritehud size <\atsize\ax>\ax \ayto change the size of the sprite.\ax", Module.Name)
 	printf("\aw[\at%s\ax] \ay/spritehud \atclose\ax \ayto close the sprite hud.\ax", Module.Name)
@@ -258,47 +289,52 @@ function Module.RenderConfig()
 		imgSize = ImGui.DragInt("Sprite Size##SpriteSize", imgSize, 1, 1, 512)
 		targetFPS = ImGui.DragInt("Animation Speed##SpriteFPS", targetFPS, 1, 1, 30)
 		local cnt = 1
-		ImGui.SeparatorText("EFX:")
-		if ImGui.BeginTable("##DebugEfx", 4) then
-			ImGui.TableNextRow()
-			ImGui.TableNextColumn()
-			for _, data in ipairs(sortedTbl) do
-				ImGui.PushID(data.name)
-				ImGui.Text(data.name)
+		if ImGui.CollapsingHeader("EFX:") then
+			if ImGui.BeginTable("##DebugEfx", 4) then
+				ImGui.TableNextRow()
 				ImGui.TableNextColumn()
-				manualEfx[data.name] = ImGui.Checkbox("##Dbg", data.value)
-				ImGui.TableNextColumn()
-				ImGui.PopID()
+				for _, data in ipairs(sortedTbl) do
+					ImGui.PushID(data.name .. "efx")
+					ImGui.Text(data.name)
+					ImGui.TableNextColumn()
+					manualEfx[data.name] = ImGui.Checkbox("##Dbg", manualEfx[data.name])
+					ImGui.TableNextColumn()
+					ImGui.PopID()
+				end
+				ImGui.EndTable()
 			end
-			ImGui.EndTable()
 		end
-		ImGui.SeparatorText("Background:")
-		if ImGui.BeginTable("##DebugBackground", 4) then
-			ImGui.TableNextRow()
-			ImGui.TableNextColumn()
-			for _, data in ipairs(sortedBackground) do
-				ImGui.PushID(data.name)
-				ImGui.Text(data.name)
+		ImGui.Spacing()
+		if ImGui.CollapsingHeader("Background:") then
+			if ImGui.BeginTable("##DebugBackground", 4) then
+				ImGui.TableNextRow()
 				ImGui.TableNextColumn()
-				manualBackground[data.name] = ImGui.Checkbox("##Dbg", data.value)
-				ImGui.TableNextColumn()
-				ImGui.PopID()
+				for _, data in ipairs(sortedBackground) do
+					ImGui.PushID(data.name .. "bg")
+					ImGui.Text(data.name)
+					ImGui.TableNextColumn()
+					manualBackground[data.name] = ImGui.Checkbox("##Dbg", manualBackground[data.name])
+					ImGui.TableNextColumn()
+					ImGui.PopID()
+				end
+				ImGui.EndTable()
 			end
-			ImGui.EndTable()
 		end
-		ImGui.SeparatorText("Sprite:")
-		if ImGui.BeginTable("##DebugCombat", 4) then
-			ImGui.TableNextRow()
-			ImGui.TableNextColumn()
-			for _, data in ipairs(sortedCombat) do
-				ImGui.PushID(data.name)
-				ImGui.Text(data.name)
+		ImGui.Spacing()
+		if ImGui.CollapsingHeader("Sprite:") then
+			if ImGui.BeginTable("##DebugCombat", 4) then
+				ImGui.TableNextRow()
 				ImGui.TableNextColumn()
-				manualSprite[data.name] = ImGui.Checkbox("##Dbg", data.value)
-				ImGui.TableNextColumn()
-				ImGui.PopID()
+				for _, data in ipairs(sortedCombat) do
+					ImGui.PushID(data.name .. 'sprite')
+					ImGui.Text(data.name)
+					ImGui.TableNextColumn()
+					manualSprite[data.name] = ImGui.Checkbox("##Dbg", manualSprite[data.name])
+					ImGui.TableNextColumn()
+					ImGui.PopID()
+				end
+				ImGui.EndTable()
 			end
-			ImGui.EndTable()
 		end
 	end
 	if not open then
@@ -409,12 +445,14 @@ function Module.RenderGUI()
 						else
 							DrawAnimatedFrame(efx2Texture, 5, currentFrame, isFemale)
 						end
-					else
+					elseif status.Armor then
 						if manualSprite.noarmor then
 							DrawAnimatedFrame(efx2Texture, 7, currentFrame, isFemale)
 						else
 							DrawAnimatedFrame(efx2Texture, 4, currentFrame, isFemale)
 						end
+					else
+						DrawAnimatedFrame(efx2Texture, 7, currentFrame, isFemale)
 					end
 				elseif status.ResSick or status.Hovering then
 					DrawAnimatedFrame(efxTexture, 0, 0, true)
@@ -592,13 +630,31 @@ function Module.UpdateStatus()
 	status.Feared = manualEfx.feared or (myself.Feared() or false)
 	status.Looting = manualEfx.looting or mq.TLO.Corpse() ~= 'FALSE'
 
-	if casters[myClass] ~= nil or manualSprite.caster then
+	if casters[myClass] ~= nil then
 		status.Caster = true
 	else
 		status.Caster = false
 	end
+
+	if plateClass[myClass] ~= nil then
+		status.Armor = true
+	else
+		status.Armor = false
+	end
+
+	if manualSprite.caster then
+		status.Caster = true
+		status.Armor = false
+	end
+
+	if manualSprite.plate then
+		status.Armor = true
+		status.Caster = false
+	end
+
 	if manualSprite.melee then
 		status.Caster = false
+		status.Armor = false
 	end
 
 
@@ -645,21 +701,6 @@ function Module.UpdateStatus()
 		end
 	end
 	hasHoT = checkHot or manualEfx.hot
-	sortedTbl = {}
-	for k, v in pairs(manualEfx) do
-		table.insert(sortedTbl, { name = k, value = v, })
-	end
-	table.sort(sortedTbl, function(a, b) return a.name < b.name end)
-	sortedBackground = {}
-	for k, v in pairs(manualBackground) do
-		table.insert(sortedBackground, { name = k, value = v, })
-	end
-	table.sort(sortedBackground, function(a, b) return a.name < b.name end)
-	sortedCombat = {}
-	for k, v in pairs(manualSprite) do
-		table.insert(sortedCombat, { name = k, value = v, })
-	end
-	table.sort(sortedCombat, function(a, b) return a.name < b.name end)
 end
 
 function Module.MainLoop()
